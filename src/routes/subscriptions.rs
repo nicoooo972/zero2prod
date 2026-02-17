@@ -1,6 +1,7 @@
 use actix_web::{web, HttpResponse};
 use sqlx::types::chrono::Utc;
 use sqlx::types::Uuid;
+use sqlx::PgPool;
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
@@ -10,7 +11,7 @@ pub struct FormData {
 
 pub async fn subscribe(
     form: web::Form<FormData>,
-    connection: web::Data<sqlx::PgConnection>,
+    pool: web::Data<PgPool>,
 ) -> HttpResponse {
     sqlx::query!(
         r#"
@@ -22,8 +23,12 @@ pub async fn subscribe(
         form.name,
         Utc::now()
     )
-        .execute(connection.get_ref())
-        .await
-        .expect("TODO: panic message");
-    HttpResponse::Ok().finish()
+        .execute(pool.get_ref())
+        .await {
+            Ok(_) => HttpResponse::Ok.finish(),
+            Err(e) => {
+            println!("Failed to execute query: {}", e);
+            HttpResponse::InternalServerError().finish()
+        }
+        }
 }
